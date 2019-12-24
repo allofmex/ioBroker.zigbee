@@ -1077,6 +1077,20 @@ function loadDeveloperTab(onChange) {
             }
             $('#expert-json').val(JSON.stringify(data, null, 4));
         };
+        
+        const checkSpecialAction = function() {
+            data = prepareData();
+            var card = $('#dev-special-action-card');
+            const msg = $('#dev-special-msg');
+            const expertMode = $('#expert-mode').is(':checked');
+            if (!expertMode && data.cmdType === 'foundation' && data.cmd === 'read') {
+                msg.html('Read ALL available attributes of selected cluster');
+                card.css('display', 'inline-block');
+            } else {
+                msg.html('');
+                card.css('display', 'none');
+            }
+        };
 
         // init event listener only at first load
         $('#dev-selector').change(function() {
@@ -1121,10 +1135,12 @@ function loadDeveloperTab(onChange) {
                 populateSelector('#cmd', 'cmdListFunctional', cid);
             }
             setExpertData('cmdType', this.value);
+            checkSpecialAction();
         });
 
         $('#cmd-selector').change(function() {
             setExpertData('cmd', this.value);
+            checkSpecialAction();
         });
         $('#attrid-selector').change(function() {
             setExpertData('zclData', {[this.value]:{}});
@@ -1159,6 +1175,7 @@ function loadDeveloperTab(onChange) {
             }
             $('#type-selector').select();
             Materialize.updateTextFields();
+            checkSpecialAction();
         });
 
         $('#dev-send-btn').click(function() {
@@ -1168,17 +1185,19 @@ function loadDeveloperTab(onChange) {
             } else {
                 data = prepareData();
             }
-            sendToZigbee(data.devId, data.ep, data.cid, data.cmd, data.cmdType, data.zclData, data.cfg, function (reply) {
-                console.log('Reply from zigbee: '+ JSON.stringify(reply));
-                if (reply.hasOwnProperty("localErr")) {
-                    showDevRunInfo(reply.localErr, reply.errMsg, 'yellow');
-                } else if (reply.hasOwnProperty('localStatus')) {
-                    showDevRunInfo(reply.localErr, reply.errMsg);
-                } else {
-                    addDevLog(reply);
-                    showDevRunInfo('OK', 'Finished.');
-                }
-            });
+            devSendToZb(data);
+        });
+
+        $('#dev-special-btn').click(function() {
+            var data = prepareData();
+            if (data.cmdType === 'foundation' && data.cmd === 'read') {
+                $("#attrid-selector > option").each(function() {
+                    const attr = this.value;
+                    if (attr === '') return;
+                    data.zclData = { [attr]: null };
+                    devSendToZb(data);
+                });
+            }
         });
     }
 
@@ -1186,6 +1205,20 @@ function loadDeveloperTab(onChange) {
     // load list of response codes
     sendTo(namespace, 'getLibData', {key: 'respCodes'}, function (data) {
         responseCodes = data.list;
+    });
+}
+
+function devSendToZb(data) {
+    sendToZigbee(data.devId, data.ep, data.cid, data.cmd, data.cmdType, data.zclData, data.cfg, function (reply) {
+        console.log('Reply from zigbee: '+ JSON.stringify(reply));
+        if (reply.hasOwnProperty("localErr")) {
+            showDevRunInfo(reply.localErr, reply.errMsg, 'yellow');
+        } else if (reply.hasOwnProperty('localStatus')) {
+            showDevRunInfo(reply.localErr, reply.errMsg);
+        } else {
+            addDevLog(reply);
+            showDevRunInfo('OK', 'Finished.');
+        }
     });
 }
 
